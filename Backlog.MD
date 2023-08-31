@@ -1,7 +1,7 @@
 # NOT DONE
-Switch your bot's code type from client to bot
+No tasks for now!
 
 
 # DONE
-The tasks done will show up here!
+Switch your bot's code type from client to bot
 
