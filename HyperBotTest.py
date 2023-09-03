@@ -94,7 +94,7 @@ async def main():
         exts = ['general', 'mod', 'dice']
         async with CustomBot(commands.when_mentioned, db_pool=pool, web_client=our_client, initial_extensions=exts) as bot:
 
-            await bot.start(os.getenv('MTE0MTc5MTU1NTMyMjEyMjI0MA.Gc-Ofo.dFNf8mlLGQIccr7J_l2FQ12rg3hwsRwuEJolwg', ''))
+            await bot.start(os.getenv('token goes here', ''))
 
 
 # For most use cases, after defining what needs to run, we can just tell asyncio to run it:
