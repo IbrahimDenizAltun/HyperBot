@@ -1,109 +1,35 @@
-import discord
-from discord.ext import commands
+import os
+import requests
+import nextcord
+from nextcord.ext import commands
 import random
 import asyncio
-import logging.handlers
-import os
-import asyncpg
-from typing import List, Optional
+import aiosqlite
 from pass_gen import passgen
 from pass_gen10 import passgen10
 from head_or_tails import head_or_tails
-from aiohttp import ClientSession
 
-
-intents = discord.Intents.default()
+intents = nextcord.Intents.default()
 intents.message_content = True
 
 bot = commands.Bot(command_prefix = "$", intents = intents)
 
-class CustomBot(commands.Bot):
-    def __init__(
-        self,
-        *args,
-        initial_extensions: List[str],
-        db_pool: asyncpg.Pool,
-        web_client: ClientSession,
-        testing_guild_id: Optional[int] = None,
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self.db_pool = db_pool
-        self.web_client = web_client
-        self.testing_guild_id = testing_guild_id
-        self.initial_extensions = initial_extensions
-
-    async def setup_hook(self) -> None:
-
-        # here, we are loading extensions prior to sync to ensure we are syncing interactions defined in those extensions.
-
-        for extension in self.initial_extensions:
-            await self.load_extension(extension)
-
-        # In overriding setup hook,
-        # we can do things that require a bot prior to starting to process events from the websocket.
-        # In this case, we are using this to ensure that once we are connected, we sync for the testing guild.
-        # You should not do this for every guild or for global sync, those should only be synced when changes happen.
-        if self.testing_guild_id:
-            guild = discord.Object(self.testing_guild_id)
-            # We'll copy in the global commands to test with:
-            self.tree.copy_global_to(guild=guild)
-            # followed by syncing to the testing guild.
-            await self.tree.sync(guild=guild)
-
-        # This would also be a good place to connect to our database and
-        # load anything that should be in memory prior to handling events.
 
 
-async def main():
-
-    # When taking over how the bot process is run, you become responsible for a few additional things.
-
-    # 1. logging
-
-    # for this example, we're going to set up a rotating file logger.
-    # for more info on setting up logging,
-    # see https://discordpy.readthedocs.io/en/latest/logging.html and https://docs.python.org/3/howto/logging.html
-
-    logger = logging.getLogger('discord')
-    logger.setLevel(logging.INFO)
-
-    handler = logging.handlers.RotatingFileHandler(
-        filename='discord.log',
-        encoding='utf-8',
-        maxBytes=32 * 1024 * 1024,  # 32 MiB
-        backupCount=5,  # Rotate through 5 files
-    )
-    dt_fmt = '%Y-%m-%d %H:%M:%S'
-    formatter = logging.Formatter('[{asctime}] [{levelname:<8}] {name}: {message}', dt_fmt, style='{')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-
-    # Alternatively, you could use:
-    # discord.utils.setup_logging(handler=handler, root=False)
-
-    # One of the reasons to take over more of the process though
-    # is to ensure use with other libraries or tools which also require their own cleanup.
-
-    # Here we have a web client and a database pool, both of which do cleanup at exit.
-    # We also have our bot, which depends on both of these.
-
-    async with ClientSession() as our_client, asyncpg.create_pool(user='postgres', command_timeout=30) as pool:
-        # 2. We become responsible for starting the bot.
-
-        exts = ['general', 'mod', 'dice']
-        async with CustomBot(commands.when_mentioned, db_pool=pool, web_client=our_client, initial_extensions=exts) as bot:
-
-            await bot.start(os.getenv('token goes here', ''))
-
-
-# For most use cases, after defining what needs to run, we can just tell asyncio to run it:
-asyncio.run(main())
+def get_duck_image_url():    
+    url = 'https://random-d.uk/api/random'
+    res = requests.get(url)
+    data = res.json()
+    return data['url']
 
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
-    await bot.change_presence(activity = discord.Game(name = "Roblox"))
+    await bot.change_presence(activity = nextcord.Game(name = "Roblox"))
+    async with aiosqlite.connect("HyperBot.db") as db:
+        async with db.cursor() as cursor:
+            await cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER, guild INTEGER)")
+        await db.commit()
 
 @bot.command()
 async def hello(ctx):
@@ -119,7 +45,7 @@ async def pass_gen(ctx, lengthy = "8"):
     await ctx.send(passgen(lengthy))
 @bot.command()
 async def cmds(ctx):
-    await ctx.send("$cmds to see all commands\n$hello makes the bot say Yo!\n$bye makes the bot say :wave:\n$pass_gen (...) generates a random password that is as long as the number you put in\n$Head_or_Tails (i think this one is obvious lol)\n$bruh responds with a bruh gif\n$happybd {mention} celebrates the mentioned's birthday!\n$guessnumber makes you guess a number between 1 and 10")
+    await ctx.send("$cmds to see all commands\n$hello makes the bot say Yo!\n$bye makes the bot say :wave:\n$pass_gen (...) generates a random password that is as long as the number you put in\n$Head_or_Tails (i think this one is obvious lol)\n$bruh responds with a bruh gif\n$happybd {mention} celebrates the mentioned's birthday!\n$guessnumber makes you guess a number between 1 and 10\n$randomduck for random ducks\n$gif to make @Hyper Bot join you sending a gif\n$randommeme to see some random meme photos")
 @bot.command()
 async def Head_or_Tails(ctx):
     await ctx.send(head_or_tails())
@@ -139,6 +65,37 @@ async def guessnumber(ctx):
         guess = await bot.wait_for('message', check=is_correct, timeout=5.0)
     except asyncio.TimeoutError:
         return await ctx.send(f'Dude, you took too long the answer was {answer}.')
+
+    if int(guess.content) == answer:
+        await ctx.send('You got it right!')
+    else:
+        await ctx.send(f'Nope! It was actually {answer}.')
+@bot.command()
+async def adduser(ctx, member:nextcord.Member):
+    member = ctx.author
+    async with aiosqlite.connect("HyperBot.db") as db:
+        async with db.cursor() as cursor:
+            await cursor.execute("SELECT id FROM users WHERE guild = ?", (member.id, ctx.guild.id))
+            data = await cursor.fetchone()
+            if data:
+                await cursor.execute("UPDATE users SET id = ? WHERE guild = ?", (member.id, ctx.guild.id))
+            else:
+                await cursor.execute("INSERT INTO users (id, guild) VALUES (?, ?)", (member.id, ctx.guild.id))
+        await db.commit
+@bot.command()
+async def randommeme(ctx):
+    randomnumber = random.randint(1,4)
+    with open('Goofy Photos/goofy' + str(randomnumber) + ".png", 'rb' ) as f:
+        pic = nextcord.File(f)
+    await ctx.send(file = pic)
+    print(os.listdir("Goofy Photos"))
+@bot.command("randomduck")
+async def randomduck(ctx):
+    image_url = get_duck_image_url()
+    await ctx.send(image_url)
+@bot.command("gif")
+async def gif(ctx, link = "https://media.tenor.com/mXoUIFADXXQAAAAd/rick-roll-discord.gif"):
+    await ctx.send(link)
 
     if int(guess.content) == answer:
         await ctx.send('You got it right!')
