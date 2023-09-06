@@ -75,13 +75,13 @@ async def adduser(ctx, member:nextcord.Member):
     member = ctx.author
     async with aiosqlite.connect("HyperBot.db") as db:
         async with db.cursor() as cursor:
-            await cursor.execute("SELECT id FROM users WHERE guild = ?", (member.id, ctx.guild.id))
+            await cursor.execute("SELECT id FROM users WHERE id = ? AND guild = ?", (member.id, ctx.guild.id))
             data = await cursor.fetchone()
             if data:
-                await cursor.execute("UPDATE users SET id = ? WHERE guild = ?", (member.id, ctx.guild.id))
+                await cursor.execute("UPDATE users SET id WHERE id = ? AND guild = ?", (member.id, ctx.guild.id))
             else:
                 await cursor.execute("INSERT INTO users (id, guild) VALUES (?, ?)", (member.id, ctx.guild.id))
-        await db.commit
+        await db.commit()
 @bot.command()
 async def randommeme(ctx):
     randomnumber = random.randint(1,4)
@@ -96,8 +96,3 @@ async def randomduck(ctx):
 @bot.command("gif")
 async def gif(ctx, link = "https://media.tenor.com/mXoUIFADXXQAAAAd/rick-roll-discord.gif"):
     await ctx.send(link)
-
-    if int(guess.content) == answer:
-        await ctx.send('You got it right!')
-    else:
-        await ctx.send(f'Nope! It was actually {answer}.')
