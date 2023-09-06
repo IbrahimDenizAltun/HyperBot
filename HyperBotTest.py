@@ -78,9 +78,13 @@ async def adduser(ctx, member:nextcord.Member):
             await cursor.execute("SELECT id FROM users WHERE id = ? AND guild = ?", (member.id, ctx.guild.id))
             data = await cursor.fetchone()
             if data:
-                await cursor.execute("UPDATE users SET id WHERE id = ? AND guild = ?", (member.id, ctx.guild.id))
+                await cursor.execute("UPDATE users SET id = ? WHERE guild = ?", (member.id, ctx.guild.id))
+                message = await ctx.send('User is already added!')
             else:
                 await cursor.execute("INSERT INTO users (id, guild) VALUES (?, ?)", (member.id, ctx.guild.id))
+                message = await ctx.send('User added!')
+                emoji = "\N{WHITE HEAVY CHECK MARK}"
+                await message.add_reaction(emoji)
         await db.commit()
 @bot.command()
 async def randommeme(ctx):
@@ -95,4 +99,5 @@ async def randomduck(ctx):
     await ctx.send(image_url)
 @bot.command("gif")
 async def gif(ctx, link = "https://media.tenor.com/mXoUIFADXXQAAAAd/rick-roll-discord.gif"):
+    await ctx.send(link)oUIFADXXQAAAAd/rick-roll-discord.gif"):
     await ctx.send(link)
