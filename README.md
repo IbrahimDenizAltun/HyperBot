@@ -35,4 +35,5 @@ $randommeme to see some random meme photos
 ## Administration Commands
 
 $kick {mention} {reason(optional)} will kick the mentioned user
+
 $ban {mention} {reason(optional)} will ban the mentioned user
