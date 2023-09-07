@@ -2,7 +2,7 @@
 This is the source code of Hyper Bot the Discord bot!
 # Commands
 ## Public Commands
--
+--------------------------------------------------------------------------------------------
 $cmds to see all commands
 $hello makes the bot say Yo!
 $bye makes the bot say :wave:
