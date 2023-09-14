@@ -1,6 +1,9 @@
 import os
 import requests
 import nextcord
+from flask import Flask
+from threading import Thread
+import keep_alive
 from nextcord.ext import commands
 import random
 import asyncio
@@ -8,11 +11,14 @@ import aiosqlite
 from pass_gen import passgen
 from pass_gen10 import passgen10
 from head_or_tails import head_or_tails
+from googlesearch import search
 
 intents = nextcord.Intents.default()
 intents.message_content = True
+intents.members = True
 
 bot = commands.Bot(command_prefix = "$", intents = intents)
+
 
 
 
@@ -30,6 +36,9 @@ async def on_ready():
         async with db.cursor() as cursor:
             await cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER, guild INTEGER)")
         await db.commit()
+@bot.event
+async def on_member_join(member):
+    await member.send("# Welcome to " + member.guild.name + "!\nThis server is currently using me as a bot and for you to use me on ease, here are all the commands:\n# Public Commands\n$cmds to see all commands\n$hello makes the bot say Yo!\n$bye makes the bot say :wave:\n$pass_gen (...) generates a random password that is as long as the number you put in\n$Head_or_Tails (i think this one is obvious lol)\n$bruh responds with a bruh gif\n$happybd {mention} celebrates the mentioned's birthday!\n$guessnumber makes you guess a number between 1 and 10\n$randomduck for random ducks\n$gif {link} to make @Hyper Bot join you sending a gif\n$randommeme to see some random meme photos\n$googlesearch {keyword(s)} searches about the keyword(s) on google\n--------------------------------------------------------------------------------------------\n# Administration Commands\n$kick {mention} {reason(optional)} will kick the mentioned user\n$ban {mention} {reason(optional)} will ban the mentioned user")
 
 @bot.command()
 async def hello(ctx):
@@ -45,7 +54,7 @@ async def pass_gen(ctx, lengthy = "8"):
     await ctx.send(passgen(lengthy))
 @bot.command()
 async def cmds(ctx):
-    await ctx.send("$cmds to see all commands\n$hello makes the bot say Yo!\n$bye makes the bot say :wave:\n$pass_gen (...) generates a random password that is as long as the number you put in\n$Head_or_Tails (i think this one is obvious lol)\n$bruh responds with a bruh gif\n$happybd {mention} celebrates the mentioned's birthday!\n$guessnumber makes you guess a number between 1 and 10\n$randomduck for random ducks\n$gif to make @Hyper Bot join you sending a gif\n$randommeme to see some random meme photos")
+    await ctx.send("# Public Commands\n$cmds to see all commands\n$hello makes the bot say Yo!\n$bye makes the bot say :wave:\n$pass_gen (...) generates a random password that is as long as the number you put in\n$Head_or_Tails (i think this one is obvious lol)\n$bruh responds with a bruh gif\n$happybd {mention} celebrates the mentioned's birthday!\n$guessnumber makes you guess a number between 1 and 10\n$randomduck for random ducks\n$gif {link} to make @Hyper Bot join you sending a gif\n$randommeme to see some random meme photos\n$googlesearch {keyword(s)} searches about the keyword(s) on google\n--------------------------------------------------------------------------------------------\n# Administration Commands\n$kick {mention} {reason(optional)} will kick the mentioned user\n$ban {mention} {reason(optional)} will ban the mentioned user")
 @bot.command()
 async def Head_or_Tails(ctx):
     await ctx.send(head_or_tails())
@@ -88,11 +97,10 @@ async def adduser(ctx, member:nextcord.Member):
         await db.commit()
 @bot.command()
 async def randommeme(ctx):
-    randomnumber = random.randint(1,4)
-    with open('Goofy Photos/goofy' + str(randomnumber) + ".png", 'rb' ) as f:
+    randomnumber = random.randint(1,5)
+    with open('Goofy Photos/' + random.choice(os.listdir("Goofy Photos")), 'rb' ) as f:
         pic = nextcord.File(f)
     await ctx.send(file = pic)
-    print(os.listdir("Goofy Photos"))
 @bot.command("randomduck")
 async def randomduck(ctx):
     image_url = get_duck_image_url()
@@ -100,3 +108,22 @@ async def randomduck(ctx):
 @bot.command("gif")
 async def gif(ctx, link = "https://media.tenor.com/mXoUIFADXXQAAAAd/rick-roll-discord.gif"):
     await ctx.send(link)
+@bot.command("kick")
+@commands.has_permissions(kick_members=True)
+async def kick(ctx, member:nextcord.Member, * , reason = None):
+    await member.kick(reason = reason)
+    await ctx.send(str(member) + " was kicked!")
+@bot.command("ban")
+@commands.has_permissions(ban_members=True)
+async def ban(ctx, member:nextcord.Member, * , reason = None):
+    await member.ban(reason = reason)
+    await ctx.send(str(member) + " was banned!")
+@bot.command(pass_context = True)
+async def googlesearch(ctx, *search_msg: str):
+    searchmessage = "".join(search_msg)
+    for URL in search(searchmessage, stop=5):
+        url = URL
+        await ctx.message.author.send(str(url))
+# @bot.command(pass_context = True)
+# async def dm(ctx, member : nextcord.Member, *, content: str):
+#    await member.send(content)
